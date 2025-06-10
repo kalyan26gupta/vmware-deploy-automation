@@ -7,7 +7,9 @@ function New-VMWithCustomization {
     param (
         $VMName, $Template, $Datastore, $PortGroup,
         $IPAddress, $SubnetMask, $Gateway,
-        $DNS1, $DNS2, $AdminPassword
+        $DNS1, $DNS2, $AdminPassword,
+        $Domain, $DomainUser, $DomainPassword,
+        $Tag
     )
 
     $nicMapping = New-OSCustomizationNicMapping -IpMode UseStaticIP `
@@ -17,9 +19,21 @@ function New-VMWithCustomization {
     $customSpec = New-OSCustomizationSpec -Name "Spec-$VMName" -Type NonPersistent `
         -FullName "Admin" -OrgName "ITDept" -OSType Windows `
         -TimeZone 085 -NamingScheme Fixed -NamingPrefix $VMName `
-        -AdminPassword $AdminPassword -NICMapping $nicMapping
+        -AdminPassword $AdminPassword -NICMapping $nicMapping `
+        -Domain $Domain -DomainUserName $DomainUser -DomainPassword $DomainPassword
 
-    New-VM -Name $VMName -VM $Template -Datastore $Datastore `
-           -NetworkName $PortGroup -OSCustomizationSpec $customSpec `
-           -Confirm:$false
+    $vm = New-VM -Name $VMName -VM $Template -Datastore $Datastore `
+                 -NetworkName $PortGroup -OSCustomizationSpec $customSpec `
+                 -Confirm:$false
+
+    # Tagging the VM
+    if (-not (Get-Tag -Name $Tag -ErrorAction SilentlyContinue)) {
+        $category = "Automation"
+        if (-not (Get-TagCategory -Name $category -ErrorAction SilentlyContinue)) {
+            New-TagCategory -Name $category -Cardinality Single -EntityType VirtualMachine
+        }
+        New-Tag -Name $Tag -Category $category
+    }
+
+    $vm | New-TagAssignment -Tag $Tag
 }
