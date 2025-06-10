@@ -2,33 +2,51 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'VM_NAME', defaultValue: 'VM-Test')
-        string(name: 'IP_ADDRESS', defaultValue: '192.168.10.101')
-        string(name: 'PORT_GROUP', defaultValue: 'VLAN10-Dev')
-        password(name: 'ADMIN_PASS', defaultValue: '', description: 'Admin password')
+        string(name: 'VCENTER_SERVER', defaultValue: 'vcenter.domain.local', description: 'vCenter FQDN or IP')
+        string(name: 'VM_NAME', defaultValue: 'VM-Demo', description: 'New VM name')
+        string(name: 'TEMPLATE', defaultValue: 'Win2019Template', description: 'vSphere Template name')
+        string(name: 'DATASTORE', defaultValue: 'DS-Prod01', description: 'Datastore name')
+        string(name: 'PORT_GROUP', defaultValue: 'VLAN-Dev', description: 'PortGroup to connect VM to')
+        string(name: 'IP_ADDRESS', defaultValue: '192.168.1.100', description: 'Static IP')
+        string(name: 'SUBNET_MASK', defaultValue: '255.255.255.0', description: 'Subnet mask')
+        string(name: 'GATEWAY', defaultValue: '192.168.1.1', description: 'Default gateway')
+        string(name: 'DNS1', defaultValue: '8.8.8.8', description: 'Primary DNS')
+        string(name: 'DNS2', defaultValue: '8.8.4.4', description: 'Secondary DNS')
+        password(name: 'ADMIN_PASS', defaultValue: '', description: 'Local Administrator password')
+        string(name: 'DOMAIN', defaultValue: 'corp.local', description: 'Domain to join')
+        string(name: 'DOMAIN_USER', defaultValue: 'joinuser', description: 'Domain join user')
+        password(name: 'DOMAIN_PASS', defaultValue: '', description: 'Domain join password')
+        string(name: 'TAG', defaultValue: 'Environment:Dev', description: 'vSphere Tag')
     }
 
     environment {
-        TEMPLATE = 'Win2019Template'
-        DATASTORE = 'DS-Dev01'
+        VC_CREDS_ID = 'vc-creds' // Jenkins credential ID for vCenter
     }
 
     stages {
         stage('Deploy VM') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'vc-creds', passwordVariable: 'VC_PASS', usernameVariable: 'VC_USER')]) {
+                withCredentials([usernamePassword(credentialsId: "${env.VC_CREDS_ID}", usernameVariable: 'VC_USER', passwordVariable: 'VC_PASS')]) {
                     powershell script: """
-                        Connect-VIServer -Server vcenter.local -User $env:VC_USER -Password $env:VC_PASS
+                        \$ErrorActionPreference = 'Stop'
                         ./deploy_vm.ps1 `
+                            -VCServer '${params.VCENTER_SERVER}' `
+                            -VCUser '\$env:VC_USER' `
+                            -VCPassword '\$env:VC_PASS' `
                             -VMName '${params.VM_NAME}' `
-                            -Template '$env:TEMPLATE' `
-                            -Datastore '$env:DATASTORE' `
+                            -Template '${params.TEMPLATE}' `
+                            -Datastore '${params.DATASTORE}' `
                             -PortGroup '${params.PORT_GROUP}' `
                             -IPAddress '${params.IP_ADDRESS}' `
-                            -SubnetMask '255.255.255.0' `
-                            -Gateway '192.168.10.1' `
-                            -DNS1 '8.8.8.8' -DNS2 '8.8.4.4' `
-                            -AdminPassword '${params.ADMIN_PASS}'
+                            -SubnetMask '${params.SUBNET_MASK}' `
+                            -Gateway '${params.GATEWAY}' `
+                            -DNS1 '${params.DNS1}' `
+                            -DNS2 '${params.DNS2}' `
+                            -AdminPassword '${params.ADMIN_PASS}' `
+                            -Domain '${params.DOMAIN}' `
+                            -DomainUser '${params.DOMAIN_USER}' `
+                            -DomainPassword '${params.DOMAIN_PASS}' `
+                            -Tag '${params.TAG}'
                     """
                 }
             }
