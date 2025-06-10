@@ -1,0 +1,6 @@
+{
+  "template": "Win2019Template",
+  "datastore": "DS-Dev01",
+  "gateway": "192.168.10.1",
+  "dns": ["8.8.8.8", "8.8.4.4"]
+}
