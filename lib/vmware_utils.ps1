@@ -1,39 +1,49 @@
 function Connect-ToVCenter {
-    param($Server, $User, $Password)
-    Connect-VIServer -Server $Server -User $User -Password $Password
+    param (
+        [string]$Server,
+        [string]$User,
+        [string]$Password
+    )
+    Write-Host "Connecting to vCenter $Server..."
+    Connect-VIServer -Server $Server -User $User -Password $Password -Force
 }
 
 function New-VMWithCustomization {
     param (
-        $VMName, $Template, $Datastore, $PortGroup,
-        $IPAddress, $SubnetMask, $Gateway,
-        $DNS1, $DNS2, $AdminPassword,
-        $Domain, $DomainUser, $DomainPassword,
-        $Tag
+        [string]$VMName,
+        [string]$Template,
+        [string]$Datastore,
+        [string]$PortGroup,
+        [string]$IPAddress,
+        [string]$SubnetMask,
+        [string]$Gateway,
+        [string]$DNS1,
+        [string]$DNS2,
+        [string]$AdminPassword,
+        [string]$Domain,
+        [string]$DomainUser,
+        [string]$DomainPassword,
+        [string]$Tag
     )
 
-    $nicMapping = New-OSCustomizationNicMapping -IpMode UseStaticIP `
-        -IpAddress $IPAddress -SubnetMask $SubnetMask `
-        -DefaultGateway $Gateway -Dns @($DNS1, $DNS2)
+    $CustomSpec = New-OSCustomizationSpec -Name "${VMName}_Spec" -OSType Windows `
+        -Type NonPersistent -FullName "AutoDeploy" -OrgName "IT" `
+        -TimeZone 035 -AdminPassword $AdminPassword -Domain $Domain `
+        -DomainUsername $DomainUser -DomainPassword $DomainPassword `
+        -NamingScheme Fixed -NamingPrefix $VMName `
+        -IpMode UseStaticIP -IPAddress $IPAddress `
+        -SubnetMask $SubnetMask -DefaultGateway $Gateway `
+        -DnsServer $DNS1,$DNS2
 
-    $customSpec = New-OSCustomizationSpec -Name "Spec-$VMName" -Type NonPersistent `
-        -FullName "Admin" -OrgName "ITDept" -OSType Windows `
-        -TimeZone 085 -NamingScheme Fixed -NamingPrefix $VMName `
-        -AdminPassword $AdminPassword -NICMapping $nicMapping `
-        -Domain $Domain -DomainUserName $DomainUser -DomainPassword $DomainPassword
+    Write-Host "Deploying VM $VMName..."
+    New-VM -Name $VMName -Template $Template -Datastore $Datastore `
+        -OSCustomizationSpec $CustomSpec -NetworkName $PortGroup `
+        -Confirm:$false | Out-Null
 
-    $vm = New-VM -Name $VMName -VM $Template -Datastore $Datastore `
-                 -NetworkName $PortGroup -OSCustomizationSpec $customSpec `
-                 -Confirm:$false
-
-    # Tagging the VM
-    if (-not (Get-Tag -Name $Tag -ErrorAction SilentlyContinue)) {
-        $category = "Automation"
-        if (-not (Get-TagCategory -Name $category -ErrorAction SilentlyContinue)) {
-            New-TagCategory -Name $category -Cardinality Single -EntityType VirtualMachine
-        }
-        New-Tag -Name $Tag -Category $category
+    if ($Tag) {
+        Write-Host "Applying tag $Tag"
+        New-TagAssignment -Entity (Get-VM $VMName) -Tag $Tag -Confirm:$false
     }
 
-    $vm | New-TagAssignment -Tag $Tag
+    Write-Host "VM $VMName deployed successfully."
 }
