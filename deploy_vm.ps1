@@ -1,4 +1,7 @@
 param (
+    [string]$VCServer,
+    [string]$VCUser,
+    [string]$VCPassword,
     [string]$VMName,
     [string]$Template,
     [string]$Datastore,
@@ -8,15 +11,24 @@ param (
     [string]$Gateway,
     [string]$DNS1,
     [string]$DNS2,
-    [string]$AdminPassword
+    [string]$AdminPassword,
+    [string]$Domain,
+    [string]$DomainUser,
+    [string]$DomainPassword,
+    [string]$Tag
 )
 
+# Import custom functions
 . "$PSScriptRoot\lib\vmware_utils.ps1"
 
-Connect-ToVCenter -Server "vcenter.local" -User "svc_jenkins" -Password "YourPasswordHere"
+# Connect to vCenter
+Connect-ToVCenter -Server $VCServer -User $VCUser -Password $VCPassword
 
-New-VMWithCustomization -VMName $VMName -Template $Template `
-    -Datastore $Datastore -PortGroup $PortGroup `
-    -IPAddress $IPAddress -SubnetMask $SubnetMask `
+# Deploy and customize the VM
+New-VMWithCustomization `
+    -VMName $VMName -Template $Template -Datastore $Datastore `
+    -PortGroup $PortGroup -IPAddress $IPAddress -SubnetMask $SubnetMask `
     -Gateway $Gateway -DNS1 $DNS1 -DNS2 $DNS2 `
-    -AdminPassword $AdminPassword
+    -AdminPassword $AdminPassword -Domain $Domain `
+    -DomainUser $DomainUser -DomainPassword $DomainPassword `
+    -Tag $Tag
