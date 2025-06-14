@@ -40,7 +40,7 @@ Automate VM provisioning in vCenter using PowerShell + Jenkins.
 | Input Field   | Value               |
 |---------------|---------------------|
 | VM_NAME       | `WebAppVM01`        |
-| IP_ADDRESS    | `192.168.10.101`    |
+| IP_ADDRESS    | `   |
 | PORT_GROUP    | `VLAN10-WebServers` |
 | ADMIN_PASS    | `Testing@123456`    |
 
